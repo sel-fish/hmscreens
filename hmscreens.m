@@ -224,7 +224,7 @@ void displaysInfo() {
 		
 		// depth ie. 32 is millions of colors, 16 is thousands, 8 is 256
 		long bpp = CGDisplayBitsPerPixel(cgScreenID);
-		printf("BitsPerPixel: %d\n", bpp);
+		printf("BitsPerPixel: %ldd\n", bpp);
 		
 		// resolution
 		NSSize resolution = [[deviceDescription objectForKey:NSDeviceResolution] sizeValue];
@@ -234,7 +234,7 @@ void displaysInfo() {
 		long refresh;
 		CFNumberRef number = CFDictionaryGetValue(CGDisplayCurrentMode(cgScreenID), kCGDisplayRefreshRate); 
 		CFNumberGetValue(number, kCFNumberLongType, &refresh);
-		printf("Refresh Rate: %d\n", refresh);
+		printf("Refresh Rate: %ldd\n", refresh);
 		
 		// usesQuartzExtreme
 		BOOL usesQuartzExtreme = CGDisplayUsesOpenGLAcceleration(cgScreenID);
