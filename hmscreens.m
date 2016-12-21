@@ -11,15 +11,15 @@
 // [-info] shows information about the connected screens
 // [-screenIDs] returns only the screen IDs for the connected screens
 // [-setMainID <Screen ID>] Screen ID of the screen that you want to make the main screen
-// [-othersStartingPosition <position>] left, right, top, or bottom... with -setMainID, this determines placement of other screens
+// [-othersGlobalStartingPosition <position>] positon format like 1280,300 or -320,-1880 ... with -setMainID, this determines placement of other screens
 //
 // Examples:
 // hmscreens -info
 // returns information about your attached screens including the Screen ID
 //
-// hmscreens -setMainID 69670848 -othersStartingPosition left
-// makes the screen with the Screen ID 69670848 the main screen.
-// Also positions other screens to the left of the main screen as shown
+// hmscreens -setMainID 69732928 -othersGlobalStartingPosition 1280,300
+// makes the screen with the Screen ID 69732928 the main screen.
+// Also positions the other screen to the position {1280, 300}
 // under the "Arrangement" section of the Displays preference pane.
 //
 // NOTE: Global Position {0, 0} coordinate (as shown under -info)
@@ -51,9 +51,14 @@ int main (int argc, const char * argv[]) {
 	} else if ([[pInfo objectAtIndex:1] isEqualToString:@"-screenIDs"]) {
 		screenIDs();
 	} else if ([[pInfo objectAtIndex:1] isEqualToString:@"-setMainID"]) {
-		NSString* screenID = [[NSUserDefaults standardUserDefaults] stringForKey:@"setMainID"];
-        NSString* othersGlobalStartingPosition = [[NSUserDefaults standardUserDefaults] stringForKey:@"othersGlobalStartingPosition"];
-		setMainScreen(screenID, othersGlobalStartingPosition);
+        if ([pInfo count] != 5 ||
+            ![[pInfo objectAtIndex:3] isEqualToString:@"-othersGlobalStartingPosition"]) {
+            printHelp();
+        } else {
+            NSString* screenID = [[NSUserDefaults standardUserDefaults] stringForKey:@"setMainID"];
+            NSString* othersGlobalStartingPosition = [pInfo objectAtIndex:4];
+            setMainScreen(screenID, othersGlobalStartingPosition);
+        }
 	} else {
 		printHelp();
 	}
@@ -97,7 +102,7 @@ void setMainScreen(NSString* screenID, NSString* othersGlobalStartingPosition) {
         return;
     }
 
-    printf("othersGlobalStartingPosition: %s\n", [othersGlobalStartingPosition UTF8String]);
+    // printf("othersGlobalStartingPosition: %s\n", [othersGlobalStartingPosition UTF8String]);
     NSInteger abscissa, ordinate;
 
     NSArray *coordinates = [othersGlobalStartingPosition componentsSeparatedByString:@","];
@@ -129,9 +134,8 @@ void setMainScreen(NSString* screenID, NSString* othersGlobalStartingPosition) {
     // error if not equal to 2 displays
     // we only handle 2 as sel-fish only has 2 displays till now
     // if only use 1 display, this program is not supposed to run
-    if (displayCount != 3) {
-        printf("Error: hmscreens can only work with 2 screens when adjusting the main screen, but displayCount: %d\n", displayCount);
-        return;
+    if (displayCount != 2) {
+         return;
     }
 	
 	// validate that the screenID exists and get the index number of it
@@ -159,7 +163,7 @@ void setMainScreen(NSString* screenID, NSString* othersGlobalStartingPosition) {
         if (i == newMainScreenIndex) { // make this one the main screen
 			CGConfigureDisplayOrigin(config, activeDisplays[i], 0, 0); //Set the as the new main display by positionning at 0,0
 		} else {
-            CGConfigureDisplayOrigin(config, activeDisplays[i], abscissa, ordinate);
+            CGConfigureDisplayOrigin(config, activeDisplays[i], abscissa, ordinate - CGDisplayPixelsHigh(activeDisplays[i]));
 		}
 	}
 
@@ -175,16 +179,16 @@ void printHelp() {
 	NSString* e = @"[-info] shows information about the connected screens";
 	NSString* f = @"[-screenIDs] returns only the screen IDs for the connected screens";
 	NSString* g = @"[-setMainID <Screen ID>] Screen ID of the screen that you want to make the main screen";
-	NSString* h = @"[-othersStartingPosition <position>] left, right, top, or bottom";
+	NSString* h = @"[-othersGlobalStartingPosition <position>] positon format like 1280,300 or -320,-1880 ...";
 	NSString* i = @"\t\tuse this with -setMainID to determine placement of other screens";
 	
 	NSString* j = @"Examples:";
 	NSString* k = @"hmscreens -info";
 	NSString* l = @"\treturns information about your attached screens including the Screen ID";
 	
-	NSString* m = @"hmscreens -setMainID 69670848 -othersStartingPosition left";
-	NSString* n = @"\tmakes the screen with the Screen ID 69670848 the main screen.";
-	NSString* o = @"\tAlso positions other screens to the left of the main screen as shown";
+	NSString* m = @"hmscreens -setMainID 69732928 -othersGlobalStartingPosition 1280,300";
+	NSString* n = @"\tmakes the screen with the Screen ID 69732928 the main screen.";
+	NSString* o = @"\tAlso positions the other screen to the position {1280, 300}";
 	NSString* p = @"\tunder the \"Arrangement\" section of the Displays preference pane.";
 	
 	NSString* q = @"NOTE: Global Position {0, 0} coordinate (as shown under -info)";
