@@ -32,7 +32,7 @@
 void printHelp();
 void displaysInfo();
 void screenIDs();
-void setMainScreen(NSString* screenID, NSString* othersStartingPosition);
+void setMainScreen(NSString* screenID, NSString* othersGlobalStartingPosition);
 
 #define MAX_DISPLAYS 32
 
@@ -52,11 +52,12 @@ int main (int argc, const char * argv[]) {
 		screenIDs();
 	} else if ([[pInfo objectAtIndex:1] isEqualToString:@"-setMainID"]) {
 		NSString* screenID = [[NSUserDefaults standardUserDefaults] stringForKey:@"setMainID"];
-		NSString* othersStartingPosition = [[NSUserDefaults standardUserDefaults] stringForKey:@"othersStartingPosition"];
-		setMainScreen(screenID, othersStartingPosition);
+        NSString* othersGlobalStartingPosition = [[NSUserDefaults standardUserDefaults] stringForKey:@"othersGlobalStartingPosition"];
+		setMainScreen(screenID, othersGlobalStartingPosition);
 	} else {
 		printHelp();
 	}
+
 	[pInfo release];
 	
     [pool drain];
@@ -87,7 +88,32 @@ void screenIDs() {
 	}
 }
 
-void setMainScreen(NSString* screenID, NSString* othersStartingPosition) {
+void setMainScreen(NSString* screenID, NSString* othersGlobalStartingPosition) {
+    // check the value of othersGlobalStartingPosition first
+    NSString* positionFormatErr = @"othersGlobalStartingPosition format err";
+
+    if (othersGlobalStartingPosition == nil) {
+        printf("Error: %s\n", [positionFormatErr UTF8String]);
+        return;
+    }
+
+    printf("othersGlobalStartingPosition: %s\n", [othersGlobalStartingPosition UTF8String]);
+    NSInteger abscissa, ordinate;
+
+    NSArray *coordinates = [othersGlobalStartingPosition componentsSeparatedByString:@","];
+    if ([coordinates count] != 2) {
+        printf("Error: %s\n", [positionFormatErr UTF8String]);
+        return;
+    } else {
+        abscissa = [[coordinates objectAtIndex:0] integerValue];
+        ordinate = [[coordinates objectAtIndex:1] integerValue];
+        if (abscissa == 0 || ordinate == 0) {
+            printf("Error: %s\n", [positionFormatErr UTF8String]);
+            return;
+        }
+        printf("othersGlobalStartingPosition: [%ld, %ld]\n", abscissa, ordinate);
+    }
+
 	CGDirectDisplayID activeDisplays[MAX_DISPLAYS];
 	CGDisplayErr err;
 	CGDisplayCount displayCount;
@@ -99,13 +125,14 @@ void setMainScreen(NSString* screenID, NSString* othersStartingPosition) {
 		printf("Error: cannot get displays:\n%d\n", err);
 		return;
 	}
-	
-	// error if more than 5 displays
-	// we only handle 5 because we set the main and left/right/top/bottom positions
-	if (displayCount > 5) {
-		printf("Error: hmscreens can only handle a max of 5 screens when adjusting the main screen\n");
-		return;
-	}
+
+    // error if not equal to 2 displays
+    // we only handle 2 as sel-fish only has 2 displays till now
+    // if only use 1 display, this program is not supposed to run
+    if (displayCount != 3) {
+        printf("Error: hmscreens can only work with 2 screens when adjusting the main screen, but displayCount: %d\n", displayCount);
+        return;
+    }
 	
 	// validate that the screenID exists and get the index number of it
 	int i, newMainScreenIndex;
@@ -125,42 +152,17 @@ void setMainScreen(NSString* screenID, NSString* othersStartingPosition) {
 		printf("Error: Screen ID %s could not be found\n", [screenID UTF8String]);
 		return;
 	}
-
-	// construct othersPos array which determines how we position the other displays
-	NSArray* othersPos;
-	if ([othersStartingPosition isEqualToString:@"left"]) {
-		othersPos = [NSArray arrayWithObjects:@"left", @"right", @"top", @"bottom", nil];
-	} else if ([othersStartingPosition isEqualToString:@"right"]) {
-		othersPos = [NSArray arrayWithObjects:@"right", @"left", @"top", @"bottom", nil];
-	} else if ([othersStartingPosition isEqualToString:@"top"]) {
-		othersPos = [NSArray arrayWithObjects:@"top", @"bottom", @"left", @"right", nil];
-	} else if ([othersStartingPosition isEqualToString:@"bottom"]) {
-		othersPos = [NSArray arrayWithObjects:@"bottom", @"top", @"left", @"right", nil];
-	} else {
-		othersPos = [NSArray arrayWithObjects:@"left", @"right", @"top", @"bottom", nil];
-	}
 	
 	// configure the displays
-	int othersCount = 0;
 	CGBeginDisplayConfiguration(&config);
 	for(i=0; i<displayCount; i++) {
-		if (i == newMainScreenIndex) { // make this one the main screen
+        if (i == newMainScreenIndex) { // make this one the main screen
 			CGConfigureDisplayOrigin(config, activeDisplays[i], 0, 0); //Set the as the new main display by positionning at 0,0
 		} else {
-			NSString* thisPos = [othersPos objectAtIndex:othersCount];
-			
-			if ([thisPos isEqualToString:@"left"]) {
-				CGConfigureDisplayOrigin(config, activeDisplays[i], -1*CGDisplayPixelsWide(activeDisplays[i]), 0);
-			} else if ([thisPos isEqualToString:@"right"]) {
-				CGConfigureDisplayOrigin(config, activeDisplays[i], CGDisplayPixelsWide(activeDisplays[newMainScreenIndex]), 0);
-			} else if ([thisPos isEqualToString:@"top"]) {
-				CGConfigureDisplayOrigin(config, activeDisplays[i], 0, -1*CGDisplayPixelsHigh(activeDisplays[i]));
-			} else if ([thisPos isEqualToString:@"bottom"]) {
-				CGConfigureDisplayOrigin(config, activeDisplays[i], 0, CGDisplayPixelsHigh(activeDisplays[newMainScreenIndex]));
-			}
-			othersCount++;
+            CGConfigureDisplayOrigin(config, activeDisplays[i], abscissa, ordinate);
 		}
 	}
+
 	CGCompleteDisplayConfiguration(config, kCGConfigureForSession);
 }
 
